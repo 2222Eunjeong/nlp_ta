@@ -1,5 +1,5 @@
-name: "샘플 웹 사이트"
-title: "샘플 웹 사이트"
+name: "이은정 nlp_ta"
+title: "텍스트 데이터 분석"
 description: |
   My Website
 output_dir: "docs"
