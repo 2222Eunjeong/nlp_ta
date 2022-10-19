@@ -1,7 +1,7 @@
 ---
 title: "텍스트 데이터 분석"
 description: |
-  내가 생각하는 텍스트 분석은 긴 문장 속에서 핵심을 찾아내는 것. 필요한 키워드를 찾고 활용할 수 있도록 만드는 기술
+  내가 생각하는 텍스트 분석은 긴 문장 속에서 핵심을 찾아내는 것. 어떤게 중요한 키워드인지 찾아내는 과정. 회사 상담이력 데이터에서 주요 키워드를 찾아보고 싶습니다.
 site: distill::distill_website
 output:
   distill::distill_article:
@@ -29,7 +29,7 @@ knitr::opts_chunk$set(echo = FALSE)
 <br>
 
 ```{r network, echo=FALSE, out.width = "55%", fig.align='center'}
-knitr::include_graphics("img/what-is-text-analysis.png")
+knitr::include_graphics("img/korean.jpeg")
 ```
 
 
@@ -37,6 +37,6 @@ knitr::include_graphics("img/what-is-text-analysis.png")
 <br>
 
 ```{r gis, echo=FALSE, out.width = "70%", fig.align='center'}
-knitr::include_graphics("img/complaint.png")
+knitr::include_graphics("img/english.png")
 ```
 
