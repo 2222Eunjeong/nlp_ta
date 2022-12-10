@@ -33,3 +33,18 @@ library(ggplot2, warn.conflicts = FALSE)
 
 xaringanExtra :: use_panelset()
 ```
+
+```{r}
+#| intro, 
+#| echo=FALSE, 
+#| out.width = "65%"
+knitr::include_graphics("img/text.jpg")
+```
+
+
+```{r, preface, echo=FALSE}
+div(class = "preface", 
+    h4("들어가기"),
+    "과제 테스트", br(),
+    "여러분은 이 Skelton 사이트에 살을 붙여서 자신의 웹 사이트를 만들 수 있습니다. 그리고 이 작업은 사이트의 구조를 이해하는 것으로부터 시작됩니다.")
+```
