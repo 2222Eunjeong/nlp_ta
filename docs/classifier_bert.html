@@ -2586,7 +2586,159 @@ code span.wa { color: #5e5e5e; font-style: italic; } /* Warning */
 </div>
 
 <div class="d-article">
-<div class="sourceCode" id="cb1"><pre class="sourceCode r distill-force-highlighting-css"><code class="sourceCode r"></code></pre></div>
+<div class="d-contents d-contents-float">
+<nav class="l-text toc figcaption" id="TOC">
+<h3>Contents</h3>
+<ul>
+<li><a href="#유사도-정렬-수집" id="toc-유사도-정렬-수집">유사도 정렬 수집</a></li>
+<li><a href="#create-udf" id="toc-create-udf">create UDF</a></li>
+</ul>
+</nav>
+</div>
+–
+<div class="layout-chunk" data-layout="l-body">
+<pre><code>* 검색된 총 기사 건수는 2740778건입니다.
+- (100/1000)건 호출을 진행합니다.
+- (200/1000)건 호출을 진행합니다.
+- (300/1000)건 호출을 진행합니다.
+- (400/1000)건 호출을 진행합니다.
+- (500/1000)건 호출을 진행합니다.
+- (600/1000)건 호출을 진행합니다.
+- (700/1000)건 호출을 진행합니다.
+- (800/1000)건 호출을 진행합니다.
+- (900/1000)건 호출을 진행합니다.
+- (1000/1000)건 호출을 진행합니다.</code></pre>
+</div>
+<h1 id="유사도-정렬-수집">유사도 정렬 수집</h1>
+<p>news_worldcup_sim &lt;- search_naver(
+keyword, client_id = client_id, client_secret = client_secret, sort = “sim”,
+do_done = TRUE, max_record = n
+)</p>
+<p>dim(news_worldcup_date)
+dim(news_worldcup_sim)</p>
+<p>head(news_worldcup_date)</p>
+<p>tail(news_worldcup_sim)</p>
+<h1 id="create-udf">create UDF</h1>
+<p>create_wordcloud &lt;- function(data, remove_n = 5, min_freq = 5, background = “white”) {
+data %&gt;%
+filter(nchar(description_text) &gt; 0) %&gt;%<br />
+tidytext::unnest_tokens(noun, description_text, bitTA::morpho_mecab, type = “noun”) %&gt;%
+group_by(noun) %&gt;%
+count() %&gt;%
+arrange(desc(n)) %&gt;%<br />
+ungroup() %&gt;%
+filter(n &gt;= min_freq) %&gt;%
+filter(row_number() &gt; remove_n) %&gt;%
+wordcloud2::wordcloud2(backgroundColor = background,
+fontFamily = “NanumSquare”)
+}</p>
+<p>library(bitReport)</p>
+<p>news_worldcup_date %&gt;%
+create_wordcloud(remove_n = 20, min_freq = 2)</p>
+<p>news_worldcup_sim %&gt;%
+create_wordcloud(remove_n = 20, min_freq = 2)</p>
+<p>persons &lt;- c(“벤투”, “손흥민”, “조규성”, “이강인”, “호날두”, “메시”)</p>
+<p>persons %&gt;%
+purrr::map_int(
+function(x) {
+news_worldcup_sim %&gt;%
+filter(stringr::str_detect(description_text, x)) %&gt;%
+tally() %&gt;%
+pull()
+}
+)</p>
+<p>persons &lt;- c(“벤투”, “손흥민”, “조규성”, “이강인”, “호날두”, “메시”)</p>
+<p>persons %&gt;%
+purrr::map_dbl(
+function(x) {
+news_worldcup_sim %&gt;%
+filter(stringr::str_detect(description_text, x)) %&gt;%
+mutate(n_talk = stringr::str_count(description_text, x)) %&gt;%
+summarise(n_avg = mean(n_talk, na.rm = TRUE)) %&gt;%
+pull()
+}
+)</p>
+<p>news_worldcup_sim &lt;- news_worldcup_sim %&gt;%
+mutate(id = row_number())</p>
+<p>library(tidyverse)
+library(bitTA)
+library(tidytext)
+library(tm)</p>
+<p>dtm_tf &lt;- news_worldcup_sim %&gt;%
+unnest_noun_ngrams(term, description_text, n = 1, type = “noun2”) %&gt;%
+filter(!str_detect(term, “[[a-zA-Z]]+”)) %&gt;%<br />
+count(id, term, sort = TRUE) %&gt;%
+cast_dtm(id, term, n)</p>
+<p>tm::inspect(dtm_tf)</p>
+<p>dtm_tfidf &lt;- news_worldcup_sim %&gt;%
+unnest_noun_ngrams(term, description_text, n = 1, type = “noun2”) %&gt;%
+filter(!str_detect(term, “[[a-zA-Z]]+”)) %&gt;%<br />
+count(id, term, sort = TRUE) %&gt;%
+cast_dtm(id, term, n, weighting = tm::weightTfIdf)</p>
+<p>tm::inspect(dtm_tfidf)</p>
+<p>persons &lt;- c(“벤투”, “손흥민”, “조규성”, “이강인”, “호날두”, “메시”)</p>
+<p>persons %&gt;%
+purrr::map(
+function(x) tm::findAssocs(dtm_tf, terms = x, corlimit = 0.4)
+)</p>
+<p>persons &lt;- c(“벤투”, “손흥민”, “조규성”, “이강인”, “호날두”, “메시”)</p>
+<p>persons %&gt;%
+purrr::map(
+function(x) tm::findAssocs(dtm_tfidf, terms = x, corlimit = 0.4)
+)</p>
+<p>dtm_bin_tf &lt;- news_worldcup_sim %&gt;%
+unnest_noun_ngrams(term, description_text, n = 1, type = “noun2”) %&gt;%
+filter(!str_detect(term, “[[a-zA-Z]]+”)) %&gt;%<br />
+count(id, term, sort = TRUE) %&gt;%
+cast_dtm(id, term, n, weighting = tm::weightBin)</p>
+<p>stop_words &lt;- dtm_bin_tf %&gt;%
+apply(2, sum) %&gt;%
+sort(decreasing = TRUE) %&gt;%
+“[”(1:30) %&gt;%
+names()
+stop_words</p>
+<p>dtm_bin_tf &lt;- news_worldcup_sim %&gt;%
+unnest_noun_ngrams(term, description_text, n = 1, type = “noun2”) %&gt;%
+filter(!term %in% stop_words) %&gt;%
+filter(!str_detect(term, “[[a-zA-Z]]+|[[0-9]]+”)) %&gt;%<br />
+count(id, term, sort = TRUE) %&gt;%
+cast_dtm(id, term, n, weighting = tm::weightBin)</p>
+<p>library(“arules”)</p>
+<p>trans &lt;- as(dtm_bin_tf %&gt;% as.matrix(), “transactions”)
+trans</p>
+<p>summary(trans)</p>
+<p>rules &lt;- apriori(trans, parameter = list(support = 0.05, conf = 0.6, target = “rules”))</p>
+<p>summary(rules)</p>
+<p>arules::inspect(rules[1:5])</p>
+<p>library(“arulesViz”)</p>
+<p>plot(rules)</p>
+<p>rule2 &lt;- sort(rules, by = “confidence”)
+inspect(head(rule2, n = 10))</p>
+<p>plot(rules, method = “grouped”)</p>
+<p>plot(rules, method = “graph”)</p>
+<p>dim(dtm_bin_tf)</p>
+<p>compact_bin &lt;- tm::removeSparseTerms(dtm_bin_tf, sparse = 0.985) %&gt;%
+as.matrix(compact_bin)</p>
+<p>dim(compact_bin)</p>
+<p>mat &lt;- t(compact_bin)</p>
+<p>dist_matrix &lt;- dist(scale(mat))</p>
+<p>fit &lt;- hclust(dist_matrix, method = “ward.D”)
+fit</p>
+<p>k &lt;- 6</p>
+<p>plot(fit)
+cluster_list &lt;- rect.hclust(fit, k = k)</p>
+<p>k %&gt;%
+seq() %&gt;%
+purrr::map(
+function(x) {
+cluster_list[[x]]
+}
+)</p>
+<p>mat &lt;- compact_bin</p>
+<p>dist_matrix &lt;- dist(scale(mat))</p>
+<p>fit &lt;- hclust(dist_matrix, method = “ward.D”)
+fit</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r distill-force-highlighting-css"><code class="sourceCode r"></code></pre></div>
 <!--radix_placeholder_article_footer-->
 <!--/radix_placeholder_article_footer-->
 </div>
