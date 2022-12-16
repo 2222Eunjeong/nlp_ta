@@ -1,7 +1,7 @@
 ---
 title: "대통령 연설문 예측"
 description: |
-  TBD
+  텍스트 분류모형을 개발하고, DTM의 종류별 성능의 차이를 비교해봅니다.
 author:
   - name: 이은정
     url: https://2222Eunjeong.github.io/
@@ -45,6 +45,10 @@ xaringanExtra :: use_panelset()
 library(tidymodels)
 library(bitTA)
 library(text2vec)
+library(tidyverse)
+library(tidytext)
+library(tm)
+
 
 ```
 
@@ -70,9 +74,9 @@ test <- rsample::testing(president_split)
 
 ## Frequency 기반의 DTM 생성
 
-### tokenize 반복기 정의
-# 띄어쓰기 단위로 토큰을 생성
-```{r, token}
+#### tokenize 반복기 정의
+##### 띄어쓰기 단위로 토큰을 생성
+```{r, token, echo=FALSE}
 token_fun <- text2vec::word_tokenizer
 
 it_train <- itoken(train$doc, 
@@ -94,7 +98,242 @@ president_speech %>%
   tally() %>% 
   arrange(desc(n))
 
+president_speech %>% 
+  filter(category %in% "환경") %>%   
+  group_by(president) %>% 
+  tally() %>% 
+  arrange(desc(n))
+
+
+dtm_envir <- president_speech %>% 
+  filter(category %in% "환경") %>% 
+  unnest_noun_ngrams(term, doc, n = 1) %>% 
+  filter(!str_detect(term, "[[a-zA-Z]]+")) %>%  ## 영문자를 제거함
+  count(id, term, sort = TRUE) %>% 
+  cast_dtm(id, term, n)
+
+
+
+dtm_envir <- president_speech %>% 
+  filter(category %in% "환경") %>% 
+  unnest_noun_ngrams(term, doc, n = 1) %>% 
+  filter(!str_detect(term, "[[a-zA-Z]]+")) %>%  ## 영문자를 제거함
+  count(id, term, sort = TRUE) %>% 
+  cast_dtm(id, term, n)
+  
+  dtm_envir
+
+tm::inspect(dtm_envir)
+
+reduce_dtm_envir <- removeSparseTerms(dtm_envir, 0.90)
+reduce_dtm_envir
+
+tm::inspect(reduce_dtm_envir)
 
 ```
+
+#### N-GRAM 기반
+```{r, ngram, echo=FALSE}
+reduce_dtm_bi <- president_speech %>% 
+  filter(category %in% "환경") %>% 
+  unnest_noun_ngrams(term, doc, n = 2, ngram_delim = ":") %>% 
+  filter(!str_detect(term, "[[a-zA-Z]]+")) %>%  
+  count(id, term, sort = TRUE) %>% 
+  cast_dtm(id, term, n) %>% 
+  removeSparseTerms(0.8)
+
+reduce_dtm_bi
+
+reduce_dtm_bi %>% 
+  tm::inspect()
+
+apply(reduce_dtm_bi, 2, sum) %>% 
+  sort(decreasing = TRUE)  
+
+apply(reduce_dtm_bi, 2, function(x) sum(x > 0)) %>% 
+  sort(decreasing = TRUE)
+
+```
+  
+### TF-IDF 기반의 DTM 생성
+#### DTM의 TF-IDF 변환
+```{r, tfidf, echo=FALSE}
+tfidf_envir <- weightTfIdf(reduce_dtm_envir)
+
+tm::inspect(tfidf_envir)
+
+president_speech %>% 
+  filter(id %in% "DOC_0606") %>% 
+  select(doc) %>% 
+  pull()
+
+## DOC_2078 문서의 TF_IDF
+tf_idf_0606 <- tfidf_envir %>% 
+  as.matrix() %>% 
+  .[rownames(.) %in% "DOC_0606", ] %>% 
+  sort(decreasing = TRUE) 
+tf_idf_0606[tf_idf_0606 > 0]
+
+
+
+
+president_speech %>% 
+  filter(id %in% "DOC_2078") %>% 
+  select(doc) %>% 
+  pull()
+  
+## DOC_2078 문서의 TF_IDF
+tf_idf_2078 <- tfidf_envir %>% 
+  as.matrix() %>% 
+  .[rownames(.) %in% "DOC_2078", ] %>% 
+  sort(decreasing = TRUE) 
+tf_idf_2078[tf_idf_2078 > 0]
+
+president_speech %>% 
+  filter(id %in% "DOC_2104") %>% 
+  select(doc) %>% 
+  pull()
+
+## DOC_2104 문서의 TF_IDF
+tf_idf_2104 <- tfidf_envir %>% 
+  as.matrix() %>% 
+  .[rownames(.) %in% "DOC_2104", ] %>% 
+  sort(decreasing = TRUE) 
+tf_idf_2104[tf_idf_2104 > 0]
+
+
+```
+
+``` {r,  dtm_matrix}
+## Document Term Matrix 생성하기
+library(tidyverse)
+library(bitTA)
+library(tidytext)
+
+if (!require("tm")) {
+  install.packages("tm")
+  library(tm)
+}  
+
+president_speech %>% 
+  group_by(category) %>% 
+  tally() %>% 
+  arrange(desc(n))
+
+president_speech %>% 
+  filter(category %in% "환경") %>%   
+  group_by(president) %>% 
+  tally() %>% 
+  arrange(desc(n))
+
+dtm_envir <- president_speech %>% 
+  filter(category %in% "환경") %>% 
+  unnest_noun_ngrams(term, doc, n = 1) %>% 
+  filter(!str_detect(term, "[[a-zA-Z]]+")) %>%  ## 영문자를 제거함
+  count(id, term, sort = TRUE) %>% 
+  cast_dtm(id, term, n)
+
+
+dtm_envir
+
+tm::inspect(dtm_envir)
+
+
+reduce_dtm_envir <- removeSparseTerms(dtm_envir, 0.90)
+reduce_dtm_envir
+
+
+tm::inspect(reduce_dtm_envir)
+
+```
+``` {r,  dtmtf, echo=FALSE}
+
+dtm_tf <- reduce_dtm_envir <- president_speech %>% 
+  filter(category %in% "환경") %>% 
+  unnest_noun_ngrams(term, doc, n = 1) %>% 
+  filter(!str_detect(term, "[[a-zA-Z]]+")) %>%  
+  count(id, term, sort = TRUE) %>% 
+  cast_dtm(id, term, n)
+
+inspect(dtm_tf)
+
+dtm_bin <- reduce_dtm_envir <- president_speech %>% 
+  filter(category %in% "환경") %>% 
+  unnest_noun_ngrams(term, doc, n = 1) %>% 
+  filter(!str_detect(term, "[[a-zA-Z]]+")) %>%  
+  count(id, term, sort = TRUE) %>% 
+  cast_dtm(id, term, n, weighting = tm::weightBin) 
+
+inspect(dtm_bin)
+
+args(cor)
+
+# 상관행렬의 계산
+mat_corr_tf <- dtm_tf %>% 
+  as.matrix() %>% 
+  cor()
+
+# 상관행렬의 차원은 무엇인가?
+dim(mat_corr_tf)
+
+# 반올림하여 소수점 3자리만 취함
+mat_corr_tf <- mat_corr_tf %>% 
+  round(3)
+
+# 7개 단어의 상관관계 파악하기
+mat_corr_tf[1:7, 1:7]
+
+tm::findAssocs(dtm_tf, terms = "탄소", corlimit = 0.8)
+
+tm::findAssocs(dtm_tf, terms = c("탄소", "녹색"), corlimit = c(0.9, 0.8))
+
+``` 
+``` {r, mat, echo=FALSE}
+## 행렬 생성
+mat <- matrix(1:12, ncol = 4, byrow = TRUE)
+mat
+
+## 행별 합계 구하기
+apply(mat, 1, sum)
+
+## 열별 평균 구하기
+apply(mat, 2, mean)
+
+## 3행 4열을 결측치로 대체
+mat[3, 4] <- NA 
+mat
+
+## 행별 평균 구하기
+apply(mat, 1, mean)
+
+## 결측치를 제거한 행별 평균 구하기
+apply(mat, 1, mean, na.rm = TRUE)
+
+apply(reduce_dtm_envir, 2, sum)
+
+# #Documnet Frequency
+apply(reduce_dtm_envir, 2, function(x) sum(x > 0))
+
+apply(reduce_dtm_envir, 2, function(x) sum(x > 0)) %>% 
+  sort(decreasing = TRUE) %>% 
+  "["(1:20)
+
+dtm_bin <- weightBin(reduce_dtm_envir) 
+tm::inspect(dtm_bin)
+
+apply(dtm_bin, 2, sum) %>% 
+  sort(decreasing = TRUE) %>% 
+  "["(1:20)
+
+# #TF-IDF
+tfidf_envir <- weightTfIdf(reduce_dtm_envir)
+
+tm::inspect(tfidf_envir)
+```
+
+
+
+
+
 
 
